@@ -25,7 +25,7 @@ lint: ## Run all the linters
 ci: lint test ## Run all the tests and code checks
 
 build: ## Build a beta version
-	go build -o skipper ./main.go
+	go build -o skipper ./
 
 #install: ## Install to $GOPATH/src
 #	go install ./cmd/...
