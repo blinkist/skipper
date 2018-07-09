@@ -15,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
-	//"github.com/blinkist/skipper/helpers"
 )
 
 // Ecsclient type
@@ -45,8 +44,10 @@ type TaskInfo struct {
 	Hardmem0             *int64
 }
 
-var instance *Ecsclient
-var once sync.Once
+var (
+	instance *Ecsclient
+	once     sync.Once
+)
 
 // New Constructor
 func New() *Ecsclient {
@@ -147,19 +148,18 @@ func (c *Ecsclient) StopTask(cluster *string, taskarn *string) (bool, error) {
 	return true, nil
 }
 
-// Return available cluster names
+// GetClusterNames returns a list of names of available clusters
 func (c *Ecsclient) GetClusterNames() ([]string, error) {
 	retCluster := make([]string, 0)
 
 	listclustersOutput, err := c.svc.ListClusters(&ecs.ListClustersInput{})
 
-	if listclustersOutput.NextToken != nil {
-		fmt.Println("Pagination not implemented")
-		os.Exit(1)
-	}
-
 	if err != nil {
 		return nil, err
+	}
+
+	if listclustersOutput.NextToken != nil {
+		return nil, errors.New("pagination not implemented")
 	}
 
 	for _, arn := range listclustersOutput.ClusterArns {
@@ -262,7 +262,7 @@ func (c *Ecsclient) RegisterTaskDefinition(task *string, rdi *RegisterTaskDefini
 	}
 
 	taskRoleArn, err := c.GetTaskRoleArn(task)
-	fmt.Println(taskRoleArn)
+	//	fmt.Println(taskRoleArn)
 	if err != nil {
 		return "", err
 	}
@@ -568,17 +568,24 @@ func (c *Ecsclient) GetContainerInstances(cluster *string, service *string) ([]*
 	var mytaskinstances []*TaskInfo
 
 	for _, t := range result2.Tasks {
-		//fmt.Println(t.TaskDefinitionArn)
+		fmt.Println(t.TaskDefinitionArn)
 		//for a, b := range result2.Tasks {
 		var awsloggroup *string
 
-		defs, _ := c.GetContainerDefinitions(t.TaskDefinitionArn)
+		defs, err := c.GetContainerDefinitions(t.TaskDefinitionArn)
+		if err != nil {
+			return nil, err
+		}
+		if len(defs) < 1 {
+			return nil, errors.New("no container definitions found in task instance")
+		}
 
-		//fmt.Println(defs[0].LogConfiguration.Options)
-		for k, v := range defs[0].LogConfiguration.Options {
-			//fmt.Println(k)
-			if k == "awslogs-group" {
-				awsloggroup = v
+		//		fmt.Println(defs[0])
+		if defs[0].LogConfiguration != nil {
+			for k, v := range defs[0].LogConfiguration.Options {
+				if k == "awslogs-group" {
+					awsloggroup = v
+				}
 			}
 		}
 		if *t.LastStatus == "RUNNING" {
@@ -698,7 +705,7 @@ func (c *Ecsclient) GetInstanceIDForContainerArn(cluster *string, containerinsta
 	}
 
 	if len(result3.ContainerInstances) != 1 {
-		return nil, fmt.Errorf("Could not get the EC2Instance for this ARN =")
+		return nil, fmt.Errorf("could not get the EC2Instance for this ARN")
 	}
 
 	instanceId := result3.ContainerInstances[0].Ec2InstanceId

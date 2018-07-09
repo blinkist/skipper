@@ -1,8 +1,6 @@
 package main
 
 import (
-	//"bytes"
-
 	"strings"
 
 	"github.com/blinkist/skipper/aws/ecsclient"

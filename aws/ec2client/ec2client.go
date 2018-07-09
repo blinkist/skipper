@@ -14,8 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-var instance *Ec2client
-var once sync.Once
+var (
+	instance *Ec2client
+	once     sync.Once
+)
 
 // Ec2client type
 type Ec2client struct {
@@ -228,7 +230,7 @@ func (c *Ec2client) StartInstance(startInstanceInput *StartInstanceInput) (*ec2.
 	if err != nil {
 		return nil, fmt.Errorf("Some error happened creating the instance: %s", err)
 	}
-	log.Println("Created instance", *runResult.Instances[0].InstanceId)
+	c.logger.Println("Created instance", *runResult.Instances[0].InstanceId)
 
 	// Add tags to the created instance
 	_, errtag := c.svc.CreateTags(&ec2.CreateTagsInput{
@@ -241,7 +243,7 @@ func (c *Ec2client) StartInstance(startInstanceInput *StartInstanceInput) (*ec2.
 		},
 	})
 	if errtag != nil {
-		return nil, fmt.Errorf("Could not create tags for instance", runResult.Instances[0].InstanceId, errtag)
+		return nil, fmt.Errorf("Could not create tags for instance %s: %v", runResult.Instances[0].InstanceId, errtag)
 
 	}
 
@@ -250,7 +252,7 @@ func (c *Ec2client) StartInstance(startInstanceInput *StartInstanceInput) (*ec2.
 	describeInstanceInput := &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{runResult.Instances[0].InstanceId},
 	}
-	c.logger.Println("Wait until the instance exist")
+	c.logger.Println("Waiting until the instance exists")
 
 	waiterr := c.svc.WaitUntilInstanceRunning(describeInstanceInput)
 	if waiterr != nil {
