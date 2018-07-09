@@ -1,35 +1,42 @@
 package main
 
 import (
-	"io"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
-	"strings"
-
-	"fmt"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	dockerpty "github.com/blinkist/go-dockerpty"
+	docker "github.com/fsouza/go-dockerclient"
+	"golang.org/x/crypto/ssh"
+
 	"github.com/blinkist/skipper/aws/ec2client"
 	"github.com/blinkist/skipper/aws/ec2resource"
 	"github.com/blinkist/skipper/aws/ecsclient"
 	"github.com/blinkist/skipper/helpers"
-	dockerpty "github.com/fgrehm/go-dockerpty"
-	docker "github.com/fsouza/go-dockerclient"
-	"golang.org/x/crypto/ssh"
 )
 
-const relConfigSSHPath = ".ssh"
+const (
+	relConfigSSHPath = ".ssh"
 
-var logger *log.Logger
+	sshTimeout = 10 * time.Second
+)
 
-// DEBUGCLUSTERNAME is the name of the ECS Cluster to copy tasks to. TODO: this should be more configurable
-var DEBUGCLUSTERNAME = "DEBUG"
+var (
+	logger *log.Logger
+
+	// DEBUGCLUSTERNAME is the name of the ECS Cluster to copy tasks to. TODO: this should be more configurable
+	DEBUGCLUSTERNAME = "DEBUG"
+)
 
 func init() {
 	logger = log.New(os.Stderr, " - ", log.LstdFlags)
@@ -50,13 +57,17 @@ func GetIdentifier(taskdef *string) *string {
 
 // ShellSelectTask is an interactive method which asks the user to select one of the few shell tasks
 // Todo: Create a distinct selection of tasks by task version
-func ShellSelectTask() *ecsclient.TaskInfo {
+func ShellSelectTask() (*ecsclient.TaskInfo, error) {
 	ecs := ecsclient.GetInstance()
 	cluster, service := helpers.ServicePicker(ecs, nil)
 
 	var taskinfos []*ecsclient.TaskInfo
+	var err error
 
-	taskinfos, _ = ecs.GetContainerInstances(&cluster, &service)
+	taskinfos, err = ecs.GetContainerInstances(&cluster, &service)
+	if err != nil {
+		return nil, err
+	}
 
 	var selectString []string
 	for _, ti := range taskinfos {
@@ -66,12 +77,15 @@ func ShellSelectTask() *ecsclient.TaskInfo {
 
 	choice, _ := strconv.Atoi(helpers.PickOption(selectString, "Please choose a task to run"))
 
-	return taskinfos[choice]
+	return taskinfos[choice], nil
 }
 
-// InvokeShell method called to start invoking a shell inside a newly craeted docker
-func InvokeShell() {
-	livetask := ShellSelectTask()
+// InvokeShell method called to start invoking a shell inside a newly created docker
+func InvokeShell() error {
+	livetask, err := ShellSelectTask()
+	if err != nil {
+		return err
+	}
 
 	tasks := GetRunningTasks(livetask.TaskDefinitionArn)
 
@@ -85,6 +99,7 @@ func InvokeShell() {
 
 		DockerStart(instancecopy, taskcopy)
 	}
+	return nil
 }
 
 // InvokeShellOnActiveTask invokes a shell on an already running debug task
@@ -112,7 +127,7 @@ func InvokeShellOnActiveTask(tasks []*ecs.Task) {
 
 }
 
-// GetRunningTasks gets running DEBUG tasks belong to the user executing skipper
+// GetRunningTasks gets running DEBUG tasks belonging to the user executing skipper
 func GetRunningTasks(taskdefinition *string) []*ecs.Task {
 	ecs := ecsclient.GetInstance()
 	tasks, err := ecs.GetClusterTasksWithDefinition(&DEBUGCLUSTERNAME, taskdefinition)
@@ -152,7 +167,7 @@ echo ECS_INSTANCE_ATTRIBUTES={\"group\": \"%s\"} >> /etc/ecs/ecs.config
 	// SelectTask(ecs2client_)
 	keypairname := GetKeypairName()
 	key_on_aws := ec2cl.KeypairExists(keypairname)
-	key_on_fs := PrivateKeyExists(keypairname)
+	key_on_fs := PrivateKeyExists(*keypairname)
 
 	if !(key_on_aws && key_on_fs) {
 		logger.Println("We do not have a valid keypair")
@@ -248,57 +263,47 @@ func GetUnixSocketPath() (*string, *string) {
 }
 
 // DockerStart takes care of creating an SSH Tunnel and forwarding the docket socket to be able to exec into the docker of the remote task
-// Todo: Better concurrency handling.....
 func DockerStart(ec2instance *ec2.Instance, task *ecs.Task) error {
 
-	localSocket, localSocketPath := GetUnixSocketPath()
-	//keypath := GetPrivateKeyPathForName(GetKeypairName())
+	dockerClient, err := StartDockerTunnel(*ec2instance.PrivateIpAddress)
+	if err != nil {
+		panic(err)
+	}
 
-	// errchan := make(chan error)
-	// connectionEstablished := make(chan bool)
-
-	go Tunnel(ec2instance.PrivateIpAddress, localSocketPath)
-	// <-connectionEstablished
-
-	logger.Println("Let's wait for the ssh tunnel to be made")
-	time.Sleep(1 * time.Second)
-
-	// Wait for connectionestablished
-
-	//	dockerClient, err := docker.NewClient("tcp://localhost:" + strconv.Itoa(port))
-	dockerClient, err := docker.NewClient(*localSocket)
+	//	conts, err := dockerClient.ListContainers(docker.ListContainersOptions{All: false})
+	conts, err := dockerClient.ListContainers(docker.ListContainersOptions{All: false})
 
 	if err != nil {
 		panic(err)
 	}
 
-	conts, _ := dockerClient.ListContainers(docker.ListContainersOptions{All: false})
-
 	for _, container := range conts {
 		value, ok := container.Labels["com.amazonaws.ecs.task-arn"]
-		if ok {
-			if value == *task.TaskArn {
-				exec, err := dockerClient.CreateExec(docker.CreateExecOptions{
-					Container:    container.ID,
-					AttachStdin:  true,
-					AttachStdout: true,
-					AttachStderr: true,
-					Tty:          true,
-					Cmd:          []string{"/bin/sh"},
-				})
-
-				if err != nil {
-					logger.Println(err)
-					os.Exit(1)
-				}
-
-				// Fire up the console
-				if err = dockerpty.StartExec(dockerClient, exec); err != nil {
-					logger.Println(err)
-				}
-			}
-			break
+		if !ok {
+			continue
 		}
+		if value == *task.TaskArn {
+			exec, err := dockerClient.CreateExec(docker.CreateExecOptions{
+				Container:    container.ID,
+				AttachStdin:  true,
+				AttachStdout: true,
+				AttachStderr: true,
+				Tty:          true,
+				Cmd:          []string{"/bin/sh"},
+			})
+
+			if err != nil {
+				logger.Println(err)
+				os.Exit(1)
+			}
+
+			// Fire up the console
+			if err = dockerpty.StartExec(dockerClient, exec); err != nil {
+				// This is where we get stuck exiting the shell
+				logger.Println("error execing container:", err)
+			}
+		}
+		break
 	}
 	StopInstance(ec2instance)
 	return nil
@@ -309,7 +314,7 @@ func StopInstance(ec2instance *ec2.Instance) {
 	choicelist := []string{"Yes", "No"}
 	choice := helpers.PickOption(choicelist, "Do you want the instance to terminate?")
 	if choice == "Yes" {
-		log.Printf("Terminating instance %s", ec2instance.InstanceId)
+		log.Printf("Terminating instance %s", *ec2instance.InstanceId)
 		err := safeTerminateInstance(ec2instance)
 		if err != nil {
 			log.Fatalf("Could not terminate instance %s error: %v\n", ec2instance.InstanceId, err)
@@ -321,25 +326,23 @@ func StopInstance(ec2instance *ec2.Instance) {
 // safeTerminateInstance is a private method which wraps around the ec2client terminate
 // to make sure the instance is started by the executing skipper user
 func safeTerminateInstance(ec2instance *ec2.Instance) error {
-	ec2cl := ec2client.GetInstance()
-
 	userkeyname := GetKeypairName()
-
 	if *ec2instance.KeyName != *userkeyname {
-		logger.Fatalf("User is not eligble to destroy instance, different keypair")
+		logger.Fatalf("user not eligible to destroy instance; different keypair")
 	}
-	return ec2cl.TerminateInstance(ec2instance)
+
+	return ec2client.GetInstance().TerminateInstance(ec2instance)
 }
 
 // SetKeypair sets the keypair on both local filesystem and EC2
 func SetKeypair() {
-	EnsureSshDir()
+	EnsureSSHDir()
 
 	ec2cl := ec2client.GetInstance()
 	keyname := GetKeypairName()
 
 	key_on_aws := ec2cl.KeypairExists(keyname)
-	key_on_fs := PrivateKeyExists(keyname)
+	key_on_fs := PrivateKeyExists(*keyname)
 
 	if key_on_aws && !key_on_fs {
 		logger.Println("The keypair is not available locally, please run purge keypair")
@@ -357,59 +360,55 @@ func SetKeypair() {
 
 		os.Exit(1)
 	} else {
-		SetPrivateKey(keyname, kpout.KeyMaterial)
+		SetPrivateKey(*keyname, *kpout.KeyMaterial)
 		logger.Printf("Succesfully set keypair %s \n", *keyname)
 	}
 }
 
 // getSSHConfigDir gets the skipper ssh dir
-func getSSHConfigDir() *string {
+func getSSHConfigDir() string {
 	home, err := helpers.UnixHome()
 	if err != nil {
 		fmt.Println("Cannot determine homedir")
 		os.Exit(1)
 	}
-	path := fmt.Sprintf("%s/%s/%s", home, helpers.RelConfigPath, relConfigSSHPath)
-	return &path
+	return filepath.Join(home, helpers.RelConfigPath, relConfigSSHPath)
 }
 
 // GetPrivateKeyPathForName gets the private ssh key for Name X
-func GetPrivateKeyPathForName(name *string) *string {
+func GetPrivateKeyPathForName(name string) string {
 	sshdir := getSSHConfigDir()
-
-	path := fmt.Sprintf("%s/%s", *sshdir, *name)
-
-	return &path
+	return filepath.Join(sshdir, name)
 }
 
 // SetPrivateKey bools if private key for name {name} exists
-func PrivateKeyExists(name *string) bool {
+func PrivateKeyExists(name string) bool {
 	path := GetPrivateKeyPathForName(name)
 
-	if _, err := os.Stat(*path); os.IsNotExist(err) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
 // SetPrivateKey sets the private key on local FS for {name}
-func SetPrivateKey(name *string, content *string) error {
-	EnsureSshDir()
+func SetPrivateKey(name string, content string) error {
+	EnsureSSHDir()
 	path := GetPrivateKeyPathForName(name)
-	d1 := []byte(*content)
-	err := ioutil.WriteFile(*path, d1, 0600)
+	d1 := []byte(content)
+	err := ioutil.WriteFile(path, d1, 0600)
 	return err
 }
 
 // DeletePrivateKey deletes private key for {name}
-func DeletePrivateKey(name *string) error {
+func DeletePrivateKey(name string) error {
 	path := GetPrivateKeyPathForName(name)
-	err := os.Remove(*path)
+	err := os.Remove(path)
 	return err
 }
 
-// EnsureSshDir makes sure skippers .ssh dir exists
-func EnsureSshDir() {
+// EnsureSSHDir makes sure skippers .ssh dir exists
+func EnsureSSHDir() {
 	err := helpers.EnsureConfigDir()
 	if err != nil {
 		logger.Printf("Cannot ensure Configdir %s", err)
@@ -424,13 +423,33 @@ func EnsureSshDir() {
 	}
 }
 
-// Tunnel is the method creating the SSH Tunnel to the ec2 instance
-// Todo: Better concurrency / error handling
-func Tunnel(ip *string, socketpath *string) {
+type sshTunnelDialer struct {
+	host string
+}
 
-	keypath := GetPrivateKeyPathForName(GetKeypairName())
+func (d *sshTunnelDialer) Dial(network, addr string) (net.Conn, error) {
+	sshAddr := d.host + ":22"
+	// Build SSH client configuration
+	cfg, err := makeSSHConfig()
+	if err != nil {
+		logger.Fatalf("Error configuring SSH: %v", err)
+	}
+	// Establish connection with SSH server
+	conn, err := ssh.Dial("tcp", sshAddr, cfg)
+	if err != nil {
+		logger.Fatalf("Error establishing SSH connection: %v", err)
+	}
+	remote, err := conn.Dial("unix", "/var/run/docker.sock")
+	if err != nil {
+		logger.Fatalf("Error connecting to Docker socket: %v", err)
+	}
+	return remote, err
+}
 
-	key, err := ioutil.ReadFile(*keypath)
+func makeSSHConfig() (*ssh.ClientConfig, error) {
+	keypath := GetPrivateKeyPathForName(*GetKeypairName())
+
+	key, err := ioutil.ReadFile(keypath)
 	if err != nil {
 		logger.Fatalf("unable to read private key: %v", err)
 	}
@@ -446,62 +465,28 @@ func Tunnel(ip *string, socketpath *string) {
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
+		Timeout: sshTimeout,
 	}
-
-	localListener, err := net.Listen("unix", *socketpath)
-
-	if err != nil {
-		logger.Fatalf("net.Listen failed: %v", err)
-	}
-
-	serverAddrString := fmt.Sprintf("%s:%d", *ip, 22)
-
-	for {
-		// Setup localConn (type net.Conn)
-		// fmt.Println("I")
-
-		localConn, err := localListener.Accept()
-
-		if err != nil {
-			logger.Fatalf("listen.Accept failed: %v", err)
-		}
-
-		go forward(localConn, config, &serverAddrString)
-	}
-
+	return config, nil
 }
 
-func forward(localConn net.Conn, config *ssh.ClientConfig, serverAddrString *string) {
-	// Setup sshClientConn (type *ssh.ClientConn)
-	sshClientConn, err := ssh.Dial("tcp", *serverAddrString, config)
-	if err != nil {
-		logger.Printf("ssh.Dial failed: %s", err)
+func StartDockerTunnel(ip string) (*docker.Client, error) {
+	dialer := &sshTunnelDialer{
+		host: ip,
 	}
-	// connectionEstablished <- true
-
-	sshConn, err := sshClientConn.Dial("unix", "/var/run/docker.sock")
-
-	errorc := make(chan error)
-	// Copy localConn.Reader to sshConn.Writer
-	go func() {
-		_, err = io.Copy(sshConn, localConn)
-		if err != nil {
-			logger.Printf("io.Copy failed X: %v", err)
-			errorc <- err
-			close(errorc)
+	newClient, err := docker.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		return nil, fmt.Errorf("Can't initialise Docker: %v", err)
+	}
+	// TODO(jonboulle): go-dockerclient actually ignores the Dialer
+	// embedded in this transport and just replaces it with whatever is set
+	// on its own .Dialer. so this is somewhat redundant. but we still need
+	// to trick it into feeding the Dialer through to the HTTPClient.
+	newClient.Dialer = dialer
+	newClient.WithTransport(func() *http.Transport {
+		return &http.Transport{
+			Dial: dialer.Dial,
 		}
-	}()
-
-	// Copy sshConn.Reader to localConn.Writer
-	go func() {
-		_, err = io.Copy(localConn, sshConn)
-		if err != nil {
-			logger.Printf("io.Copy failed Y: %v", err)
-			errorc <- err
-			close(errorc)
-		}
-	}()
-	reterr := <-errorc
-
-	fmt.Printf("END -- %v", reterr)
+	})
+	return newClient, nil
 }
