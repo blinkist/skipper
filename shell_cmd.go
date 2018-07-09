@@ -1,15 +1,11 @@
 package main
 
 import (
-	//"bytes"
+	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
-
-	"golang.org/x/crypto/ssh"
 )
-
-var session *ssh.Session
-var exitTimeStamp int32
 
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel [service]",
@@ -18,24 +14,22 @@ var tunnelCmd = &cobra.Command{
 TUNNELLL
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		InvokeShell()
+		err := InvokeShell()
+		if err != nil {
+			fmt.Printf("error invoking shell: %v", err)
+			os.Exit(-1)
+		}
 	},
 }
 
 var shellCmd = &cobra.Command{
-	Use:   "shell [service]",
-	Short: "empty",
-	Long: `
-
-`,
-	Run: func(cmd *cobra.Command, args []string) {
-
-	},
+	Use:   "shell <subcommand>",
+	Short: "Shell commands",
 }
 
 var setkeypairCmd = &cobra.Command{
 	Use:   "setkeypair [service]",
-	Short: "Secure Shell into one of the service container instances' EC2 host machines",
+	Short: "Create a temporary EC2 keypair for the current user",
 	Long: `
 Lets say you have a service running a few container instances on various hosts.
 Lets say you also need to debug some file configuration running in the container,
@@ -48,12 +42,9 @@ yourself! Yay. I guess.
 	},
 }
 
-var listinstancesCmd = &cobra.Command{
-	Use:   "listinstances [service]",
-	Short: "We purge the keypair on both filesystem and AWS",
-	Long: `
-	We purge the keypair on both filesystem and AWS
-`,
+var purgeKeypairCmd = &cobra.Command{
+	Use:   "purgekeypair [service]",
+	Short: "Purge the current user's keypair on both filesystem and AWS",
 	Run: func(cmd *cobra.Command, args []string) {
 		// //		ec2client_ := ec2client.New()
 
@@ -74,10 +65,8 @@ var listinstancesCmd = &cobra.Command{
 }
 
 func init() {
-	exitTimeStamp = 0
 	RootCmd.AddCommand(shellCmd)
 	shellCmd.AddCommand(setkeypairCmd)
-	shellCmd.AddCommand(listinstancesCmd)
+	shellCmd.AddCommand(purgeKeypairCmd)
 	shellCmd.AddCommand(tunnelCmd)
-
 }
