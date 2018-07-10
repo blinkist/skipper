@@ -19,7 +19,6 @@ func listSSM(service *string) {
 	global := "global"
 	listParams, _ := ssm.GetParameters(&global)
 	green := color.New(color.FgGreen).SprintFunc()
-	//whiteslim := color.New(color.FgWhite).SprintFunc()
 	whitebold := color.New(color.FgWhite, color.Bold).SprintFunc()
 	fmt.Printf("%s %s %s\n", "===", whitebold(global), whitebold("Config Vars"))
 	for v := range listParams {
@@ -37,14 +36,9 @@ func listSSM(service *string) {
 
 }
 
-// statusCmd represents the status command
 var ssmindexCmd = &cobra.Command{
 	Use:   "ssm",
-	Short: "Docker commands",
-	Long:  "This command has subcommand",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("This command has subcommands ")
-	},
+	Short: "SSM commands",
 }
 
 var ssmListCmd = &cobra.Command{
@@ -119,7 +113,6 @@ var ssmHistoryCmd = &cobra.Command{
 
 		ssm := ssmclient.New()
 		green := color.New(color.FgGreen).SprintFunc()
-		//whiteslim := color.New(color.FgWhite).SprintFunc()
 		whitebold := color.New(color.FgWhite, color.Bold).SprintFunc()
 
 		listParams, _ := ssm.GetParameterHistory(&stripped, &name)

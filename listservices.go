@@ -1,14 +1,31 @@
 package main
 
-import "github.com/spf13/cobra"
-import "github.com/blinkist/skipper/aws/ecsclient"
-import "fmt"
-import "sort"
+import (
+	"fmt"
+	"os"
+	"sort"
+
+	"github.com/spf13/cobra"
+
+	"github.com/blinkist/skipper/aws/ecsclient"
+)
+
+func init() {
+	RootCmd.AddCommand(servicesListCmd)
+
+}
 
 func listServices() {
 	ecs := ecsclient.New()
-	clusters, _ := ecs.GetClusterNames()
+	clusters, err := ecs.GetClusterNames()
+	if err != nil {
+		panic(fmt.Sprintf("unhandled error: %v", err))
+	}
 	sort.Strings(clusters)
+	if len(clusters) < 0 {
+		fmt.Printf("no clusters found\n")
+		os.Exit(0)
+	}
 
 	for _, cluster := range clusters {
 		services, _ := ecs.ListServices(&cluster)
@@ -30,8 +47,4 @@ var servicesListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		listServices()
 	},
-}
-
-func init() {
-	RootCmd.AddCommand(servicesListCmd)
 }

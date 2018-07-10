@@ -65,8 +65,8 @@ func UnixHome() (string, error) {
 			}
 		}
 	}
-
 	out.Reset()
+
 	cmd = exec.Command("sh", "-c", "cd && pwd")
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
@@ -74,9 +74,9 @@ func UnixHome() (string, error) {
 	}
 
 	res := strings.TrimSpace(out.String())
-	if res == "" {
-		return "", errors.New("We cannot not find a dir")
+	if res != "" {
+		return res, nil
 	}
 
-	return res, nil
+	return "", errors.New("cannot find a home directory for current user")
 }

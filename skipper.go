@@ -50,7 +50,10 @@ var skipperUploadCmd = &cobra.Command{
 		}))
 
 		t := time.Now()
-		pwd, _ := helpers.GetPath()
+		pwd, err := helpers.GetPath()
+		if err != nil {
+			panic(err)
+		}
 
 		bucket := bucketS3
 		keyNameDarwin := fmt.Sprintf("%s/skipper-%s", bucketS3PathBuildsDarwin, t.Format("200601021504"))
@@ -67,7 +70,7 @@ var skipperUploadCmd = &cobra.Command{
 		fhLinux, err := os.Open(fileLinux)
 
 		if err != nil {
-			fmt.Printf("The to be uploaded file does not exist:\n%s", fileLinux)
+			fmt.Printf("The file to be uploaded does not exist:\n%s", fileLinux)
 			os.Exit(1)
 		}
 
