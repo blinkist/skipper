@@ -13,3 +13,9 @@ install:
 script:
   - make
   - make test
+
+# build PRs, and master branch, but not every other branch as well
+# https://github.com/travis-ci/travis-ci/issues/1147#issuecomment-160820262
+branches:
+  only:
+    master
