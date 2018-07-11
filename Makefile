@@ -7,7 +7,7 @@ setup: ## Install all the build and lint dependencies
 	go get -u github.com/golang/dep/...
 	go get -u github.com/pierrre/gotestcover
 	go get -u golang.org/x/tools/cmd/cover
-	# dep ensure
+	dep ensure
 	gometalinter --install
 
 test: ## Run all the tests
