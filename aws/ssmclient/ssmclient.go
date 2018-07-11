@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,51 +12,50 @@ import (
 )
 
 type Ssmclient struct {
-	session      *session.Session
-	svc          *ssm.SSM
-	creds	     *credentials.Credentials
-	logger       *log.Logger
+	session *session.Session
+	svc     *ssm.SSM
+	creds   *credentials.Credentials
+	logger  *log.Logger
 }
 
 type Ssmkeypair struct {
-	Key      *string
-	Value    *string
+	Key   *string
+	Value *string
 }
 
 type Ssmkeypairhistory struct {
-	Key      *string
-	Value    *string
-	Version  *int64
+	Key              *string
+	Value            *string
+	Version          *int64
 	LastModifiedUser *string
 	LastModifiedDate *time.Time
 }
-
 
 func New() *Ssmclient {
 	sess := session.New()
 	svc := ssm.New(sess)
 
 	return &Ssmclient{
-		svc:    svc,
+		svc:     svc,
 		session: sess,
 	}
 }
 
-func (c *Ssmclient)  GetParameters( application *string, ) ([]*Ssmkeypair, error) {
+func (c *Ssmclient) GetParameters(application *string) ([]*Ssmkeypair, error) {
 
-  withDecryption := true
-  mypath := fmt.Sprintf("/application/%s" , *application )
+	withDecryption := true
+	mypath := fmt.Sprintf("/application/%s", *application)
 
 	ssmkeypairs := make([]*Ssmkeypair, 0)
 
-/// START
+	/// START
 	var nextToken *string
 	for {
-		resp, err := c.svc.GetParametersByPath( &ssm.GetParametersByPathInput{
-		Path: &mypath,
-		WithDecryption: &withDecryption,
-		NextToken:      nextToken,
-		Recursive: aws.Bool(true),
+		resp, err := c.svc.GetParametersByPath(&ssm.GetParametersByPathInput{
+			Path:           &mypath,
+			WithDecryption: &withDecryption,
+			NextToken:      nextToken,
+			Recursive:      aws.Bool(true),
 		})
 
 		if err != nil {
@@ -66,7 +66,7 @@ func (c *Ssmclient)  GetParameters( application *string, ) ([]*Ssmkeypair, error
 			name := *resp.Parameters[i].Name
 			value := *resp.Parameters[i].Value
 			a := Ssmkeypair{
-				Key: &name,
+				Key:   &name,
 				Value: &value,
 			}
 			ssmkeypairs = append(ssmkeypairs, &a)
@@ -83,40 +83,40 @@ func (c *Ssmclient)  GetParameters( application *string, ) ([]*Ssmkeypair, error
 	return ssmkeypairs, nil
 }
 
-func (c *Ssmclient)  GetParameterHistory( application *string, name *string) ([]*Ssmkeypairhistory, error) {
+func (c *Ssmclient) GetParameterHistory(application *string, name *string) ([]*Ssmkeypairhistory, error) {
 
-withDecryption := true
-  fullname := fmt.Sprintf("/application/%s/%s" , *application , *name )
-	params := &ssm.GetParameterHistoryInput {
-	Name: &fullname,
-	WithDecryption: &withDecryption,
+	withDecryption := true
+	fullname := fmt.Sprintf("/application/%s/%s", *application, *name)
+	params := &ssm.GetParameterHistoryInput{
+		Name:           &fullname,
+		WithDecryption: &withDecryption,
 	}
 	resp, err := c.svc.GetParameterHistory(params)
 	if err != nil {
-	log.Fatal(err)
+		log.Fatal(err)
 	}
 	ssmkeypairs := make([]*Ssmkeypairhistory, len(resp.Parameters))
 
-for i := range resp.Parameters {
-	name := *resp.Parameters[i].Name
-	value := *resp.Parameters[i].Value
-	a := Ssmkeypairhistory{
-		Key: &name,
-		Value: &value,
-		Version: resp.Parameters[i].Version,
-		LastModifiedUser: resp.Parameters[i].LastModifiedUser,
-		LastModifiedDate: resp.Parameters[i].LastModifiedDate,
+	for i := range resp.Parameters {
+		name := *resp.Parameters[i].Name
+		value := *resp.Parameters[i].Value
+		a := Ssmkeypairhistory{
+			Key:              &name,
+			Value:            &value,
+			Version:          resp.Parameters[i].Version,
+			LastModifiedUser: resp.Parameters[i].LastModifiedUser,
+			LastModifiedDate: resp.Parameters[i].LastModifiedDate,
+		}
+		ssmkeypairs[i] = &a
 	}
-	ssmkeypairs[i] = &a
+
+	return ssmkeypairs, nil
 }
 
- return ssmkeypairs, nil
-}
-
-func (c *Ssmclient)  PutParameter( application *string, name *string, value *string) (error) {
+func (c *Ssmclient) PutParameter(application *string, name *string, value *string) error {
 	overwrite := true
-  kmskeyid := fmt.Sprintf("alias/application/%s" , *application )
-  ssmparamname :=  fmt.Sprintf("/application/%s/%s" , *application, *name )
+	kmskeyid := fmt.Sprintf("alias/application/%s", *application)
+	ssmparamname := fmt.Sprintf("/application/%s/%s", *application, *name)
 	parameterType := "SecureString"
 	input := &ssm.PutParameterInput{
 		Name:      &ssmparamname,
@@ -133,15 +133,15 @@ func (c *Ssmclient)  PutParameter( application *string, name *string, value *str
 	return nil
 }
 
-func (c *Ssmclient)  DeleteParameter( application *string, name *string) (error) {
-	  ssmparamname :=  fmt.Sprintf("/application/%s/%s" , *application, *name )
-		input := &ssm.DeleteParameterInput{
-			Name: &ssmparamname,
-		}
-
-		_, err := c.svc.DeleteParameter(input)
-		if err != nil {
-			panic(fmt.Sprintf("Error authorizing: %s\n", err.Error()))
-		}
-		return nil
+func (c *Ssmclient) DeleteParameter(application *string, name *string) error {
+	ssmparamname := fmt.Sprintf("/application/%s/%s", *application, *name)
+	input := &ssm.DeleteParameterInput{
+		Name: &ssmparamname,
 	}
+
+	_, err := c.svc.DeleteParameter(input)
+	if err != nil {
+		panic(fmt.Sprintf("Error authorizing: %s\n", err.Error()))
+	}
+	return nil
+}

@@ -121,7 +121,7 @@ func (c *Ec2client) GetInstancesWithTagName(name *string) []*ec2.Instance {
 
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name: aws.String("tag:Name"),
 				Values: []*string{
 					aws.String(*name),

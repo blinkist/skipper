@@ -140,7 +140,7 @@ func GetRunningTasks(taskdefinition *string) []*ecs.Task {
 	identifier := GetKeypairName()
 
 	j := 0
-	for i, _ := range tasks {
+	for i := range tasks {
 		if tasks[i].StartedBy != nil {
 			if *tasks[i].StartedBy == *identifier {
 				tasks[j] = tasks[i]

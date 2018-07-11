@@ -511,7 +511,7 @@ func (c *Ecsclient) GetClusterTasksWithDefinition(cluster *string, taskdefinitio
 	}
 
 	j := 0
-	for i, _ := range tasks {
+	for i := range tasks {
 		if *tasks[i].TaskDefinitionArn == *taskdefinition {
 			tasks[j] = tasks[i]
 			j++
