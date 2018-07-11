@@ -320,6 +320,21 @@
   version = "v0.8.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:e35aa9186b751ff48b3ae9bab8e6c89cd8da9577330779cc08c2cdf6bca6b74a"
+  name = "github.com/segmentio/bellows"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "218d75d8c3de824ac9e7dd066da357bd5e09b9b8"
+
+[[projects]]
+  digest = "1:cf0f80cde1fd988e56214a6a300d20a3742e67cc324ae19dbd79c1a2fafa74ce"
+  name = "github.com/segmentio/cwlogs"
+  packages = ["lib"]
+  pruneopts = "UT"
+  revision = "8bc25b1d64e35cf5abc4eeb4587a26ba615474da"
+
+[[projects]]
   digest = "1:8b26a3712f9cc9cda56f36cf3e95126b5140103866584116758917129bfedd38"
   name = "github.com/segmentio/ecs-logs-go"
   packages = ["."]
@@ -459,6 +474,7 @@
     "github.com/fsouza/go-dockerclient",
     "github.com/hashicorp/golang-lru",
     "github.com/pkg/errors",
+    "github.com/segmentio/cwlogs/lib",
     "github.com/segmentio/ecs-logs-go",
     "github.com/spf13/cobra",
     "github.com/spf13/viper",

@@ -72,3 +72,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/segmentio/cwlogs"
+  revision = "8bc25b1d64e35cf5abc4eeb4587a26ba615474da"
