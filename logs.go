@@ -5,7 +5,7 @@ import (
 
 	"github.com/blinkist/skipper/aws/ecsclient"
 	"github.com/blinkist/skipper/helpers"
-	"github.com/blinkist/skipper/vendors/cwlogs"
+	cwlogs "github.com/segmentio/cwlogs/lib"
 
 	"os"
 	"text/template"

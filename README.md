@@ -1,5 +1,7 @@
 # Skipper
 
+[![Build Status](https://travis-ci.org/blinkist/skipper.svg?branch=master)](https://travis-ci.org/blinkist/skipper)
+
 ## A tool for working with Amazon ECS clusters.
 
 Skipper is a command line tool that was built to ease working with [Amazon ECS](https://aws.amazon.com/ecs/) clusters.
