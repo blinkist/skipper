@@ -230,7 +230,8 @@ func (c *Ec2client) StartInstance(startInstanceInput *StartInstanceInput) (*ec2.
 	if err != nil {
 		return nil, fmt.Errorf("Some error happened creating the instance: %s", err)
 	}
-	c.logger.Println("Created instance", *runResult.Instances[0].InstanceId)
+	id := *runResult.Instances[0].InstanceId
+	c.logger.Println("Created instance", id)
 
 	// Add tags to the created instance
 	_, errtag := c.svc.CreateTags(&ec2.CreateTagsInput{
@@ -243,7 +244,7 @@ func (c *Ec2client) StartInstance(startInstanceInput *StartInstanceInput) (*ec2.
 		},
 	})
 	if errtag != nil {
-		return nil, fmt.Errorf("Could not create tags for instance %s: %v", runResult.Instances[0].InstanceId, errtag)
+		return nil, fmt.Errorf("Could not create tags for instance %s: %v", id, errtag)
 
 	}
 

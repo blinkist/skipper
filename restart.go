@@ -47,7 +47,7 @@ func rotatingkill(cluster *string, service *string) {
 
 	tcs, err = ecs.GetContainerInstances(cluster, service)
 	if err != nil {
-		fmt.Printf("Error getting container instances: %s")
+		fmt.Printf("Error getting container instances: %s\n", err)
 		os.Exit(1)
 	}
 

@@ -116,7 +116,7 @@ func (c *Ecsclient) FindService(cluster *string, service *string) (*ecs.Service,
 	if len(result.Services) == 1 {
 		return result.Services[0], nil
 	}
-	return nil, fmt.Errorf("did not find one (%d) services matching name %s in %s cluster, unable to continue", len(result.Services), service, *cluster)
+	return nil, fmt.Errorf("did not find one (%d) services matching name %s in %s cluster, unable to continue", len(result.Services), *service, *cluster)
 }
 
 // Start Task on Container Instance
