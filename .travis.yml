@@ -1,25 +1,27 @@
 sudo: false
 language: go
 go:
-  - "1.10"
-
+- '1.10'
 os:
-  - linux
-  - osx
-
+- linux
+- osx
 cache:
- # https://github.com/golang/dep/blob/2def43184ada5ecd015a24fde5b5ece169d38c5a/docs/FAQ.md#how-do-i-use-dep-in-ci
   directories:
-    - $GOPATH/pkg/dep
-
+  # https://github.com/golang/dep/blob/2def43184ada5ecd015a24fde5b5ece169d38c5a/docs/FAQ.md#how-do-i-use-dep-in-ci
+  - "$GOPATH/pkg/dep"
 install:
-  - make setup
+- make setup
 script:
-  - make
-  - make test
-
-# build PRs, and master branch, but not every other branch as well
-# https://github.com/travis-ci/travis-ci/issues/1147#issuecomment-160820262
+- make
+- make test
 branches:
-  only:
-    master
+  # build PRs, and master branch, but not every other branch as well
+  # https://github.com/travis-ci/travis-ci/issues/1147#issuecomment-160820262
+  only: master
+deploy:
+  provider: releases
+  api_key:
+    secure: jd08m6HP7E9pdPDy9QhKKDjuLjSGcgBw1LMwT/rn0rorxSL273kqX6Na/uQS5BP8/9AACNeBANpbCUbELL2ol+uASdQIA/QvZqyTcUUSUz2Wjn2u18VbrSPUCb08uSJmIhd77vHu/nFPS8wFWhasdD9AiE8cSglVV32TkIc+/NVv30IaGlr7aWEJcXqGPrJhjCt8c/U2MUvXs+RvHdC8l2L+CjEB2ssuBfRESoErSNchEGxHesJkxl48lqtnDkYshaXlf18B3mB/H7IxF6fjQyay6sKYkhzqZmh35eX95cMlxS/cmTkS7ot3/ajfW1u6AjWUyVvFGMR32z+Vh19F62QvwZfXa+huC2W9Z61H25/Jpo7JhcEi7jaqTus2bwLoYecFJdETvuR2gpHzWWiyUGMFc3HdCAPJR/ATa1y+h9tsPLFTu9BAUtHLPrUkzVqdzn004/2pQbS/N7u9H/evHJwNlkCmCOM3M4m4IFWu8dzHNano1mtHf1LcfpTqjX0BQlwzkixTd+Q/TG6uXca0pZekKooqofoVbllYE7S3bpDf5RwmToGVqnjkoSVgEMlYkEsr3MldnCDNK3L8Q4VJzKuzpdErhj45Wx5H5mHwCLtP0PRysOPJnTVEVsHxwmPfXQWt6YtdL4z0M5QHa7AE/bGzxAAAeRIrRYT+fcfrYbc=
+  file: skipper
+  on:
+    repo: blinkist/skipper
