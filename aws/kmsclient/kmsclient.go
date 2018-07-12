@@ -1,6 +1,7 @@
 package kmsclient
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -73,27 +74,7 @@ func (c *Kmsclient) FindKmsAliasByName(name string, marker *string) (*kms.AliasL
 }
 
 func (c *Kmsclient) FindKmsKeyByDescription(description string, marker *string) (*kms.AliasListEntry, error) {
-	req := kms.ListKeysInput{
-		Limit: aws.Int64(int64(100)),
-	}
-	if marker != nil {
-		req.Marker = marker
-	}
-	resp, err := c.svc.ListAliases(&req)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, entry := range resp.Aliases {
-		if *entry.AliasName == name {
-			return entry, nil
-		}
-	}
-	if *resp.Truncated {
-		return c.FindKmsAliasByName(name, resp.NextMarker)
-	}
-
-	return nil, nil
+	return nil, errors.New("unimplemented")
 }
 
 func (c *Kmsclient) AliasByNameExists(name string) bool {

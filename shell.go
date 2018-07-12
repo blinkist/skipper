@@ -140,7 +140,7 @@ func GetRunningTasks(taskdefinition *string) []*ecs.Task {
 	identifier := GetKeypairName()
 
 	j := 0
-	for i, _ := range tasks {
+	for i := range tasks {
 		if tasks[i].StartedBy != nil {
 			if *tasks[i].StartedBy == *identifier {
 				tasks[j] = tasks[i]
@@ -317,7 +317,7 @@ func StopInstance(ec2instance *ec2.Instance) {
 		log.Printf("Terminating instance %s", *ec2instance.InstanceId)
 		err := safeTerminateInstance(ec2instance)
 		if err != nil {
-			log.Fatalf("Could not terminate instance %s error: %v\n", ec2instance.InstanceId, err)
+			log.Fatalf("Could not terminate instance %s error: %v\n", *ec2instance.InstanceId, err)
 		}
 		log.Println("Succesfully deleted instance")
 	}

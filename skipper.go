@@ -84,9 +84,7 @@ var skipperUploadCmd = &cobra.Command{
 
 		uploader := s3manager.NewUploader(sess)
 
-		result, err := uploader.Upload(upParams)
-
-		fmt.Printf("result: %s", result)
+		_, err = uploader.Upload(upParams)
 
 		if err != nil {
 			fmt.Printf("Error uploading %v\n", err)
@@ -114,7 +112,7 @@ var skipperUploadCmd = &cobra.Command{
 			Key:    &keyNameLinux,
 			Body:   fhLinux,
 		}
-		result, err = uploader.Upload(upParams)
+		_, err = uploader.Upload(upParams)
 
 		if err != nil {
 			fmt.Println("Error uploading")
