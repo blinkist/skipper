@@ -1,12 +1,11 @@
-# Skipper
-
-[![Build Status](https://travis-ci.org/blinkist/skipper.svg?branch=master)](https://travis-ci.org/blinkist/skipper)
+# Skipper [![Build Status](https://travis-ci.org/blinkist/skipper.svg?branch=master)](https://travis-ci.org/blinkist/skipper)
 
 ## A tool for working with Amazon ECS clusters.
 
-Skipper is a command line tool that was built to ease working with [Amazon ECS](https://aws.amazon.com/ecs/) clusters.
+Skipper is a command line tool that was built to ease working with [Amazon ECS](https://aws.amazon.com/ecs/) clusters. 
+It offers various subcommands for interacting with ECS: listing tasks, fetching logs, and so on.
 
-Skipper offers various subcommands for interacting with ECS: listing tasks, fetching logs, and so on.
+_Note: Skipper is a young project with a number of known issues and rough edges. You're encouraged to try it out, and please don't hesitate to file [issues](https://github.com/blinkist/skipper/issues) for any problems encountered!_
 
 ### Debugging tasks
 
@@ -25,10 +24,10 @@ This means it can spawn a shell inside the remote Docker container with a simila
 Since Skipper just uses the standard AWS environment variables for authorisation configuration (i.e `AWS_SECRET_KEY` and `AWS_ACCESS_KEY`), it's ideally suited for use in conjunction with [`aws-vault`](https://github.com/99designs/aws-vault):
 
 ```
-	# list all of the ecs instances in the prod environment
-	aws-vault exec dev -- skipper list
-	# debug a task in the dev environment
-	aws-vault exec prod -- skipper shell tunnel
+    # list all of the ecs instances in the prod environment
+    aws-vault exec dev -- skipper list
+    # debug a task in the dev environment
+    aws-vault exec prod -- skipper shell tunnel
 ```
 
 ## TODO
